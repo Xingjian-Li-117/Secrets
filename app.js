@@ -1,3 +1,4 @@
+//jshint esversion:6
 require('dotenv').config()
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -23,7 +24,7 @@ app.use(bodyParser.urlencoded({
 
 // security 5
 app.use(session({
-    secret: 'Our little secret.',
+    secret: "Our little secret.",
     resave: false,
     saveUninitialized: false
 }))
@@ -32,6 +33,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 mongoose.connect("mongodb://localhost:27017/userDB", {useNewUrlParser: true});
+// mongoose.connect("mongodb://localhost:27017/userDB", {
+//   useNewUrlParser: true,
+//   useUnifiedTopology: true,
+// });
 mongoose.set("useCreateIndex", true);
 
 const userSchema = new mongoose.Schema({
@@ -53,7 +58,7 @@ passport.serializeUser(function(user, done) {
   });
    
 passport.deserializeUser(function(id, done) {
-    User.findById(id, (err,user)=>{
+    User.findById(id).then((err,user)=>{
         done(err,user); // ??
     })
 });
@@ -66,9 +71,9 @@ passport.use(new GoogleStrategy({
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo" 
 },
   function(accessToken, refreshToken, profile, cb) {
-    console.log(profile.id, profile.name);
-    User.findOrCreate({ googleId: profile.id }, function ( user, err) {
-        return cb( user, err);
+    console.log(profile);
+    User.findOrCreate({ googleId: profile.id }, function (err,user) {
+        return cb(err,user);
     });
   }
 ));
@@ -84,7 +89,7 @@ app.get("/auth/google",
 // so that after logging in to google it jumps back to /secrets
 app.get('/auth/google/secrets', 
   passport.authenticate('google', { 
-    successRedirect: '/secrets',
+    // successRedirect: '/secrets',
     failureRedirect: '/login' }),
   function(req, res) {
     // Successful authentication, redirect home.
@@ -92,11 +97,12 @@ app.get('/auth/google/secrets',
   });
 
 app.get("/login",(req, res)=>{
-    if(req.isAuthenticated()){
-        res.redirect("/secrets");
-    } else {
-        res.render("login");
-    }
+    // if(req.isAuthenticated()){
+    //     res.redirect("/secrets");
+    // } else {
+    //     res.render("login");
+    // }
+    res.render("login");
 })
 
 app.get("/register",(req, res)=>{
@@ -104,14 +110,14 @@ app.get("/register",(req, res)=>{
 })
 
 app.get("/secrets", (req, res)=>{
-    User.find({"secret": {$ne: null}}).then((foundUsers, err)=>{
+    User.find({"secret": {$ne: null}}, (err,foundUsers)=>{
         if (err){console.log(err);}
         else
          {if (foundUsers){
             res.render("secrets",{usersWithSecrets: foundUsers});
         }}
-    })
-})
+    });
+});
 
 app.get("/submit", (req, res)=>{
     if (req.isAuthenticated()){
@@ -119,32 +125,27 @@ app.get("/submit", (req, res)=>{
     } else {
         res.redirect("/login");
     }
-})
+});
 
 app.get("/logout", (req, res)=>{
-    req.logout((err)=>{
-        if (err){console.log(err);}
-        else {
-            res.redirect("/");
-            console.log("User Logged out and this session ended: " + req.headers.cookie);
-        }
-    });
-})
+    req.logout();
+    res.redirect("/");
+});
 
 app.post("/submit", (req, res)=>{
     const submittedSecret = req.body.secret;
-    User.findById(req.user.id).then((foundUser,err)=>{
+    User.findById(req.user.id,(err,foundUser)=>{
         if (err){console.log(err);}
         else {if (foundUser){
             foundUser.secret = submittedSecret;
             foundUser.save().then(()=>{res.redirect("/secrets");})
         }}
-    })
+    });
     // not adding to but replacing the last secret
-})
+});
 
 app.post("/register", (req, res)=>{
-    User.register({username: req.body.username}, req.body.password).then((user, err)=>{
+    User.register({username: req.body.username}, req.body.password).then((err,user)=>{
         if (err) {
             console.log(err);
             res.redirect("/register");
@@ -163,16 +164,16 @@ app.post("/login", (req, res)=>{
         password: req.body.password
       });
     
-      req.login(user, function(err){
-        if (err) {
-          console.log(err);
-        } else {
-          passport.authenticate("local")(req, res, function(){
-            console.log("redirecting to secrets");
-            res.redirect("/secrets");
-          });
-        }
-      });
+    req.login(user, function(err){
+    if (err) {
+        console.log(err);
+    } else {
+        passport.authenticate("local")(req, res, function(){
+        console.log("redirecting to secrets");
+        res.redirect("/secrets");
+        });
+    }
+    });
     
 })
 
