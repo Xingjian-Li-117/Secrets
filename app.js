@@ -33,10 +33,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 mongoose.connect("mongodb://localhost:27017/userDB", {useNewUrlParser: true});
-// mongoose.connect("mongodb://localhost:27017/userDB", {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// });
 mongoose.set("useCreateIndex", true);
 
 const userSchema = new mongoose.Schema({
@@ -58,9 +54,9 @@ passport.serializeUser(function(user, done) {
   });
    
 passport.deserializeUser(function(id, done) {
-    User.findById(id).then((err,user)=>{
-        done(err,user); // ??
-    })
+    User.findById(id, function(err, user) {
+        done(err, user);
+    });
 });
 
 
